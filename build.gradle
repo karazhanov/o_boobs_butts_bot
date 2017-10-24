@@ -1,0 +1,16 @@
+group 'org.obb'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile "org.telegram:telegrambots:3.4"
+    compile "org.telegram:telegrambotsextensions:3.4"
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
