@@ -1,4 +1,5 @@
 import org.telegram.telegrambots.api.methods.send.SendMessage;
+import org.telegram.telegrambots.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -6,7 +7,6 @@ import org.telegram.telegrambots.api.objects.replykeyboard.buttons.KeyboardButto
 import org.telegram.telegrambots.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.exceptions.TelegramApiException;
-import org.telegram.telegrambots.exceptions.TelegramApiValidationException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -18,14 +18,23 @@ import java.util.List;
 public class OBBBot extends TelegramLongPollingBot {
 
     private ImageChoiser imageChoiser;
+    private ReplyKeyboardMarkup keyboardMarkup;
 
     public OBBBot() {
         imageChoiser = new ImageChoiser();
+
+        keyboardMarkup = new ReplyKeyboardMarkup();
+        keyboardMarkup.setResizeKeyboard(true);
+        List<KeyboardRow> keyboard = new ArrayList<>();
+        KeyboardRow keyboardButtons = new KeyboardRow();
+        keyboardButtons.add(new KeyboardButton(CONST.BOOBS_COMMAND));
+        keyboardButtons.add(new KeyboardButton(CONST.BUTTS_COMMAND));
+        keyboard.add(keyboardButtons);
+        keyboardMarkup.setKeyboard(keyboard);
     }
 
     @Override
     public void onUpdateReceived(Update update) {
-        // We check if the update has a message and the message has text
         if (update.hasMessage()) {
             Message message = update.getMessage();
             if (message.hasText()) {
@@ -35,59 +44,61 @@ public class OBBBot extends TelegramLongPollingBot {
     }
 
     private void parceMessage(Message message) {
-        SendMessage messageResponse;
-        if (message.isCommand()) {
-            messageResponse = executeCommand(message);
-        } else {
-            messageResponse = executeText(message);
-        }
         try {
-            sendMessage(messageResponse); // Call method to send the message
-        } catch (TelegramApiException e) {
+            if (message.isCommand()) {
+                executeCommand(message);
+            } else {
+                executeText(message);
+            }
+        } catch (TelegramApiException | IOException e) {
             e.printStackTrace();
         }
     }
 
-    private SendMessage executeText(Message message) {
+    private void executeText(Message message) throws TelegramApiException {
         System.out.println("TEXT " + message.getText() + " from " + message.getFrom());
-        return new SendMessage() // Create a SendMessage object with mandatory fields
-                .setChatId(message.getChatId())
-                .setText("You can send only commands:\n/butts\n/boobs")
-                .setReplyMarkup(getKeyboard());
+        sendText(message, "You can send only commands:\n/butts\n/boobs");
     }
 
-    private SendMessage executeCommand(Message message) {
+    private void executeCommand(Message message) throws TelegramApiException, IOException {
         System.out.println("COMMAND " + message.getText() + " from " + message.getFrom());
-        String response = getResponse(message);
-        return new SendMessage()
-                .setChatId(message.getChatId())
-                .setText(response)
-                .setReplyMarkup(getKeyboard());
+        makeResponse(message);
     }
 
-    private String getResponse(Message message) {
-        try {
-            switch (message.getText()) {
-                case CONST.BOOBS_COMMAND: return imageChoiser.getRandomImage(ImageType.BOOBS);
-                case CONST.BUTTS_COMMAND: return imageChoiser.getRandomImage(ImageType.BUTTS);
-                case CONST.START_COMMAND: return CONST.START_INFO_DESCRIPTION;
-                default: return "Choose valid command";
-            }
-        } catch (IOException | TelegramApiValidationException e) {
-            return "ERROR";
+    private void makeResponse(Message message) throws TelegramApiException, IOException {
+        String cmd = message.getText();
+        if(CONST.START_COMMAND.equals(cmd)) {
+            sendText(message, CONST.START_INFO_DESCRIPTION);
+            return;
         }
+        if(CONST.BOOBS_COMMAND.equals(cmd)) {
+            sendPhoto(message, imageChoiser.getRandomImage(ImageType.BOOBS));
+            return;
+        }
+        if(CONST.BUTTS_COMMAND.equals(cmd)) {
+            sendPhoto(message, imageChoiser.getRandomImage(ImageType.BUTTS));
+            return;
+        }
+        sendText(message, cmd + " is invalid. Choose valid command");
     }
 
-    private ReplyKeyboardMarkup getKeyboard() {
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        keyboardMarkup.setResizeKeyboard(true);
-        List<KeyboardRow> keyboard = new ArrayList<>();
-        KeyboardRow keyboardButtons = new KeyboardRow();
-        keyboardButtons.add(new KeyboardButton(CONST.BOOBS_COMMAND));
-        keyboardButtons.add(new KeyboardButton(CONST.BUTTS_COMMAND));
-        keyboard.add(keyboardButtons);
-        keyboardMarkup.setKeyboard(keyboard);
-        return  keyboardMarkup;
+
+
+    private void sendText(Message message, String text) throws TelegramApiException {
+        SendMessage sendMessage = new SendMessage() // Create a SendMessage object with mandatory fields
+                .setChatId(message.getChatId())
+                .setText(text)
+                .setReplyMarkup(keyboardMarkup);
+        sendMessage(sendMessage);
+    }
+
+    private void sendPhoto(Message message, String photoUrl) throws TelegramApiException {
+        SendPhoto photo = new SendPhoto();
+        photo
+                .setChatId(message.getChatId())
+                .setPhoto(photoUrl)
+                .setReplyMarkup(keyboardMarkup);
+        sendPhoto(photo);
     }
 
     @Override
